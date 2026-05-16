@@ -75,16 +75,20 @@ class VaultixBackupCommand extends Command
                 Log::critical("Vaultix Safety Abort: " . $msg);
                 
                 if ($job->notify_on_failure && $job->notification_email) {
-                    Mail::send('vaultix::emails.notification', [
-                        'status' => 'failed',
-                        'job' => $job,
-                        'size' => null,
-                        'error' => $msg,
-                        'dashboardUrl' => $dashboardUrl,
-                        'messageText' => $this->isManualTrigger ? 'The manual backup you triggered has failed due to storage issues.' : 'The scheduled backup job for your project has failed.'
-                    ], function($m) use ($job) {
-                        $m->to($job->notification_email)->subject("🚨 Vaultix Safety Alert: Storage Insufficient");
-                    });
+                    try {
+                        Mail::send('vaultix::emails.notification', [
+                            'status' => 'failed',
+                            'job' => $job,
+                            'size' => null,
+                            'error' => $msg,
+                            'dashboardUrl' => $dashboardUrl,
+                            'messageText' => $this->isManualTrigger ? 'The manual backup you triggered has failed due to storage issues.' : 'The scheduled backup job for your project has failed.'
+                        ], function($m) use ($job) {
+                            $m->to($job->notification_email)->subject("🚨 Vaultix Safety Alert: Storage Insufficient");
+                        });
+                    } catch (\Exception $mailException) {
+                        Log::error("Vaultix Mail Error (Pre-check): " . $mailException->getMessage());
+                    }
                 }
                 return;
             }
@@ -164,16 +168,20 @@ class VaultixBackupCommand extends Command
                 if ($job->notify_on_success && $job->notification_email) {
                     Log::info("Vaultix: Sending success email to {$job->notification_email}");
                     $formattedSize = round($size/1024/1024, 2) . " MB";
-                    Mail::send('vaultix::emails.notification', [
-                        'status' => 'success',
-                        'job' => $job,
-                        'size' => $formattedSize,
-                        'error' => null,
-                        'dashboardUrl' => $dashboardUrl,
-                        'messageText' => $this->isManualTrigger ? 'The manual backup you triggered has been completed successfully.' : 'The scheduled backup job for your project has been completed successfully.'
-                    ], function($m) use ($job) {
-                        $m->to($job->notification_email)->subject("✅ Vaultix Success: {$job->name}");
-                    });
+                    try {
+                        Mail::send('vaultix::emails.notification', [
+                            'status' => 'success',
+                            'job' => $job,
+                            'size' => $formattedSize,
+                            'error' => null,
+                            'dashboardUrl' => $dashboardUrl,
+                            'messageText' => $this->isManualTrigger ? 'The manual backup you triggered has been completed successfully.' : 'The scheduled backup job for your project has been completed successfully.'
+                        ], function($m) use ($job) {
+                            $m->to($job->notification_email)->subject("✅ Vaultix Success: {$job->name}");
+                        });
+                    } catch (\Exception $mailException) {
+                        Log::error("Vaultix Mail Error (Success): " . $mailException->getMessage());
+                    }
                 }
             } else {
                 throw new \Exception("Backup failed with exit code: {$exitCode}. Output: {$output}");
@@ -187,16 +195,20 @@ class VaultixBackupCommand extends Command
             ]);
 
             if ($job->notify_on_failure && $job->notification_email) {
-                Mail::send('vaultix::emails.notification', [
-                    'status' => 'failed',
-                    'job' => $job,
-                    'size' => null,
-                    'error' => $e->getMessage(),
-                    'dashboardUrl' => $dashboardUrl,
-                    'messageText' => $this->isManualTrigger ? 'The manual backup you triggered has failed.' : 'The scheduled backup job for your project has failed.'
-                ], function($m) use ($job) {
-                    $m->to($job->notification_email)->subject("❌ Vaultix Failure: {$job->name}");
-                });
+                try {
+                    Mail::send('vaultix::emails.notification', [
+                        'status' => 'failed',
+                        'job' => $job,
+                        'size' => null,
+                        'error' => $e->getMessage(),
+                        'dashboardUrl' => $dashboardUrl,
+                        'messageText' => $this->isManualTrigger ? 'The manual backup you triggered has failed.' : 'The scheduled backup job for your project has failed.'
+                    ], function($m) use ($job) {
+                        $m->to($job->notification_email)->subject("❌ Vaultix Failure: {$job->name}");
+                    });
+                } catch (\Exception $mailException) {
+                    Log::error("Vaultix Mail Error (Failure): " . $mailException->getMessage());
+                }
             }
         }
 
