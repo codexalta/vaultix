@@ -1,4 +1,4 @@
-# Vaultix - Advanced Backup & Audit System for Laravel
+# Vaultix - Advanced Multi-Storage Backup System for Laravel
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/codexalta/vaultix.svg?style=flat-square)](https://packagist.org/packages/codexalta/vaultix)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/codexalta/vaultix/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/codexalta/vaultix/actions?query=workflow%3Arun-tests+branch%3Amain)
