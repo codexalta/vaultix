@@ -92,8 +92,8 @@ Contributions are welcome! If you find a bug or want to add a feature, please op
 
 ## 🛡️ Security Vulnerabilities
 
-If you discover a security vulnerability within Vaultix, please send an e-mail to mdmilton2913@gmail.com. All security vulnerabilities will be promptly addressed.
+If you discover a security vulnerability within Vaultix, please send an e-mail to codexalta@gmail.com. All security vulnerabilities will be promptly addressed.
 
 ## 📄 License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
