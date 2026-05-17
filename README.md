@@ -49,9 +49,12 @@ These packages are automatically installed with Vaultix:
    ```
 
 3. **Environment Setup:**
-   Add the following to your `.env` file to define the Super Admin:
+   Add the following to your `.env` file to define the Super Admin and optional disk monitoring path:
    ```env
    VAULTIX_SUPER_ADMIN=your-email@example.com
+   
+   # Optional: Set this if your project runs in WSL or Docker and you want to monitor a specific partition (e.g., /mnt/c or /)
+   # VAULTIX_DISK_PATH=/mnt/c
    ```
 
 ## ⚙️ Configuration
