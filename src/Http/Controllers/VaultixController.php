@@ -277,12 +277,14 @@ class VaultixController extends Controller
     {
         $clientId = $request->query('client_id');
         $clientSecret = $request->query('client_secret');
+        $destinationId = $request->query('destination_id'); // present when editing
 
         if (!$clientId || !$clientSecret) {
             return back()->with('error', 'Please enter Client ID and Secret first.');
         }
 
         session(['vaultix_gdrive_creds' => ['id' => $clientId, 'secret' => $clientSecret]]);
+        session(['vaultix_gdrive_destination_id' => $destinationId]);
 
         $query = http_build_query([
             'client_id' => $clientId,
@@ -301,8 +303,14 @@ class VaultixController extends Controller
         $code = $request->query('code');
         $creds = session('vaultix_gdrive_creds');
 
+        // Determine where to redirect back (create or edit page)
+        $destinationId = session('vaultix_gdrive_destination_id');
+
         if (!$code || !$creds) {
-            return redirect()->route('vaultix.destinations.create')->with('error', 'Authorization failed or timed out.');
+            $fallbackRoute = $destinationId
+                ? route('vaultix.destinations.edit', $destinationId)
+                : route('vaultix.destinations.create');
+            return redirect($fallbackRoute)->with('error', 'Authorization failed or timed out.');
         }
 
         try {
@@ -317,17 +325,38 @@ class VaultixController extends Controller
             $data = $response->json();
 
             if (isset($data['refresh_token'])) {
+                // Clear the temporary session data
+                session()->forget(['vaultix_gdrive_creds', 'vaultix_gdrive_destination_id']);
+
+                if ($destinationId) {
+                    // Redirect back to EDIT page with token pre-filled
+                    return redirect()->route('vaultix.destinations.edit', $destinationId)
+                        ->with('vaultix_gdrive_token', [
+                            'refresh_token' => $data['refresh_token'],
+                            'client_id'     => $creds['id'],
+                            'client_secret' => $creds['secret'],
+                        ])
+                        ->with('success', 'Google Drive authorized! Token has been pre-filled below — save to confirm.');
+                }
+
+                // Redirect to CREATE page
                 return redirect()->route('vaultix.destinations.create', [
                     'refresh_token' => $data['refresh_token'],
-                    'client_id' => $creds['id'],
+                    'client_id'     => $creds['id'],
                     'client_secret' => $creds['secret'],
-                    'provider' => 'gdrive'
+                    'provider'      => 'gdrive',
                 ])->with('success', 'Google Drive authorized! Refresh token generated.');
             }
 
-            return redirect()->route('vaultix.destinations.create')->with('error', 'Failed to get refresh token. Make sure you chose "Consent" during login.');
+            $fallbackRoute = $destinationId
+                ? route('vaultix.destinations.edit', $destinationId)
+                : route('vaultix.destinations.create');
+            return redirect($fallbackRoute)->with('error', 'Failed to get refresh token. Make sure you chose "Consent" during login.');
         } catch (\Exception $e) {
-            return redirect()->route('vaultix.destinations.create')->with('error', 'Error: ' . $e->getMessage());
+            $fallbackRoute = $destinationId
+                ? route('vaultix.destinations.edit', $destinationId)
+                : route('vaultix.destinations.create');
+            return redirect($fallbackRoute)->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -515,10 +544,14 @@ class VaultixController extends Controller
         $threshold = VaultixSetting::get('storage_threshold_mb', 500);
         $timezone = VaultixSetting::get('timezone', config('app.timezone'));
         $logRetentionDays = VaultixSetting::get('log_retention_days', 30);
+        $activityLogVisibility = VaultixSetting::get('activity_log_visibility', 'super_admin_only');
+
+        $superAdmin = config('vaultix.super_admin');
+        $isSuperAdmin = $superAdmin && auth()->user() && auth()->user()->email === $superAdmin;
 
         $diskUsage = $this->getDiskUsage();
 
-        return view('vaultix::settings', compact('authorizedEmails', 'threshold', 'diskUsage', 'timezone', 'logRetentionDays'));
+        return view('vaultix::settings', compact('authorizedEmails', 'threshold', 'diskUsage', 'timezone', 'logRetentionDays', 'activityLogVisibility', 'isSuperAdmin'));
     }
 
     public function updateTimezone(Request $request)
@@ -530,18 +563,39 @@ class VaultixController extends Controller
 
     public function updateLogRetention(Request $request)
     {
+        // Only super admin can change log retention
+        $superAdmin = config('vaultix.super_admin');
+        if (!$superAdmin || !auth()->user() || auth()->user()->email !== $superAdmin) {
+            abort(403, 'Only the Super Admin can update Activity Log Retention.');
+        }
         $request->validate(['days' => 'required|integer|min:1']);
         VaultixSetting::set('log_retention_days', $request->days);
-        VaultixActivity::log('settings', 'Retention', $request->days . ' Days', "Updated activity log retention period.");
+        VaultixActivity::log('settings', 'Retention', $request->days . ' Days', 'Updated activity log retention period.');
         return back()->with('success', 'Log retention period updated!');
+    }
+
+    public function updateActivityVisibility(Request $request)
+    {
+        // Only super admin can change this
+        $superAdmin = config('vaultix.super_admin');
+        if (!$superAdmin || !auth()->user() || auth()->user()->email !== $superAdmin) {
+            abort(403, 'Only the Super Admin can update this setting.');
+        }
+        $request->validate(['visibility' => 'required|in:super_admin_only,all_authorized']);
+        VaultixSetting::set('activity_log_visibility', $request->visibility);
+        VaultixActivity::log('settings', 'ActivityLog', $request->visibility, 'Updated activity log visibility setting.');
+        return back()->with('success', 'Activity log visibility updated!');
     }
 
     public function activities(Request $request)
     {
-        // Only super admin can see activity logs
+        // Check activity log visibility setting
         $superAdmin = config('vaultix.super_admin');
-        if (!$superAdmin || auth()->user()->email !== $superAdmin) {
-            abort(403, 'Only the Super Admin can view activity logs.');
+        $isSuperAdmin = $superAdmin && auth()->user() && auth()->user()->email === $superAdmin;
+        $visibility = VaultixSetting::get('activity_log_visibility', 'super_admin_only');
+
+        if (!$isSuperAdmin && $visibility === 'super_admin_only') {
+            abort(403, 'Activity logs are restricted to Super Admin only.');
         }
 
         $query = VaultixActivity::orderBy('created_at', 'desc');

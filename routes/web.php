@@ -36,6 +36,7 @@ Route::middleware(['web', 'vaultix.auth'])->prefix('vaultix')->group(function ()
     Route::post('/settings/threshold', [VaultixController::class, 'updateThreshold'])->name('vaultix.settings.threshold');
     Route::post('/settings/timezone', [VaultixController::class, 'updateTimezone'])->name('vaultix.settings.timezone');
     Route::post('/settings/log-retention', [VaultixController::class, 'updateLogRetention'])->name('vaultix.settings.log_retention');
+    Route::post('/settings/activity-visibility', [VaultixController::class, 'updateActivityVisibility'])->name('vaultix.settings.activity_visibility');
     Route::get('/activities', [VaultixController::class, 'activities'])->name('vaultix.activities');
     Route::get('/activities/export', [VaultixController::class, 'exportActivities'])->name('vaultix.activities.export');
 });

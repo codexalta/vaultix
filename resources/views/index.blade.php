@@ -98,7 +98,9 @@
                     <tr>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Job Name</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Provider</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Schedule</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Retention / Capacity</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Last Run</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Next Run</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
                     </tr>
@@ -141,12 +143,34 @@
                                 {{ $job->destination->provider }}
                             </span>
                         </td>
+                        @php
+                            $freqLabels = ['hourly' => 'Hourly', '6_hours' => 'Every 6h', '12_hours' => 'Every 12h', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly'];
+                            $freqColors = ['hourly' => 'bg-purple-100 text-purple-700', '6_hours' => 'bg-blue-100 text-blue-700', '12_hours' => 'bg-cyan-100 text-cyan-700', 'daily' => 'bg-indigo-100 text-indigo-700', 'weekly' => 'bg-emerald-100 text-emerald-700', 'monthly' => 'bg-amber-100 text-amber-700'];
+                            $freqLabel = $freqLabels[$job->frequency] ?? ucfirst($job->frequency);
+                            $freqColor = $freqColors[$job->frequency] ?? 'bg-slate-100 text-slate-600';
+                            $schedTime = $job->backup_time && !in_array($job->frequency, ['hourly', '6_hours', '12_hours']) ? ' @ ' . $job->backup_time : '';
+                            $schedDay  = in_array($job->frequency, ['weekly', 'monthly']) && $job->backup_day ? ' (' . ucfirst($job->backup_day) . ')' : '';
+                        @endphp
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold {{ $freqColor }} uppercase">{{ $freqLabel }}</span>
+                            @if($schedTime)
+                                <span class="block text-[10px] text-slate-400 mt-0.5">{{ $schedTime }}{{ $schedDay }}</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm font-bold text-slate-700">~{{ ceil($estFiles) }} Files</span>
                                 <span class="text-xs text-slate-400">/</span>
                                 <span class="text-xs font-semibold text-indigo-600">Est. {{ $formattedProjection }}</span>
                             </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            @if($job->last_run_at)
+                                <span class="block text-sm font-medium text-slate-700">{{ \Carbon\Carbon::parse($job->last_run_at)->format('M d, Y') }}</span>
+                                <span class="block text-[10px] text-slate-400">{{ \Carbon\Carbon::parse($job->last_run_at)->diffForHumans() }}</span>
+                            @else
+                                <span class="text-slate-400 italic text-sm">Never</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 text-sm text-slate-500">{{ $job->next_run_at ? \Carbon\Carbon::parse($job->next_run_at)->diffForHumans() : 'Pending' }}</td>
                         <td class="px-6 py-4 text-right">
@@ -303,6 +327,7 @@
                     <tr>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Date & Time</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Destination</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Schedule</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">File Name</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Size</th>
                         <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Status</th>
@@ -318,6 +343,16 @@
                         </td>
                         <td class="px-6 py-4">
                             <span class="text-sm text-slate-600 block">{{ $backup->job->name ?? 'Unknown' }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            @php
+                                $bFreqLabels = ['hourly' => 'Hourly', '6_hours' => 'Every 6h', '12_hours' => 'Every 12h', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly'];
+                                $bFreqColors = ['hourly' => 'bg-purple-100 text-purple-700', '6_hours' => 'bg-blue-100 text-blue-700', '12_hours' => 'bg-cyan-100 text-cyan-700', 'daily' => 'bg-indigo-100 text-indigo-700', 'weekly' => 'bg-emerald-100 text-emerald-700', 'monthly' => 'bg-amber-100 text-amber-700'];
+                                $bFreq = $backup->job->frequency ?? null;
+                                $bFreqLabel = $bFreq ? ($bFreqLabels[$bFreq] ?? ucfirst($bFreq)) : '—';
+                                $bFreqColor = $bFreq ? ($bFreqColors[$bFreq] ?? 'bg-slate-100 text-slate-600') : 'bg-slate-100 text-slate-400';
+                            @endphp
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold {{ $bFreqColor }} uppercase">{{ $bFreqLabel }}</span>
                         </td>
                         <td class="px-6 py-4 text-sm text-slate-500 truncate max-w-[150px]">
                             {{ $backup->file_name }}

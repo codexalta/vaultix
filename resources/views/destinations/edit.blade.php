@@ -102,6 +102,21 @@
 
                 <!-- Dynamic Credentials -->
                 <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    @php
+                        $flashToken = session('vaultix_gdrive_token');
+                        $prefillRefreshToken = $flashToken['refresh_token'] ?? ($destination->credentials['refresh_token'] ?? '');
+                        $prefillClientId     = $flashToken['client_id']     ?? ($destination->credentials['client_id']     ?? '');
+                        $prefillClientSecret = $flashToken['client_secret'] ?? ($destination->credentials['client_secret'] ?? '');
+                    @endphp
+                    @if($flashToken)
+                    <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+                        <svg class="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div>
+                            <p class="text-sm font-bold text-emerald-800">Google Drive authorized successfully!</p>
+                            <p class="text-xs text-emerald-700 mt-1">The refresh token and credentials have been pre-filled below. Click <strong>Save Changes</strong> to confirm.</p>
+                        </div>
+                    </div>
+                    @endif
                     <div id="fields-gdrive" class="provider-fields space-y-4 {{ old('provider', $destination->provider) == 'gdrive' ? '' : 'hidden' }}">
                         <!-- Google Drive Setup Guide -->
                         <div class="bg-indigo-50 border border-indigo-100 p-6 rounded-xl space-y-4 mb-6">
@@ -128,13 +143,13 @@
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-slate-400 uppercase mb-1">Client ID</label><input type="text" id="gdrive_client_id" name="credentials[client_id]" value="{{ old('credentials.client_id', $destination->credentials['client_id'] ?? '') }}" class="w-full px-4 py-2 rounded-lg border border-slate-200"></div>
-                            <div><label class="block text-xs font-bold text-slate-400 uppercase mb-1">Client Secret</label><input type="password" id="gdrive_client_secret" name="credentials[client_secret]" value="{{ old('credentials.client_secret', $destination->credentials['client_secret'] ?? '') }}" class="w-full px-4 py-2 rounded-lg border border-slate-200"></div>
+                            <div><label class="block text-xs font-bold text-slate-400 uppercase mb-1">Client ID</label><input type="text" id="gdrive_client_id" name="credentials[client_id]" value="{{ old('credentials.client_id', $prefillClientId) }}" class="w-full px-4 py-2 rounded-lg border border-slate-200"></div>
+                            <div><label class="block text-xs font-bold text-slate-400 uppercase mb-1">Client Secret</label><input type="password" id="gdrive_client_secret" name="credentials[client_secret]" value="{{ old('credentials.client_secret', $prefillClientSecret) }}" class="w-full px-4 py-2 rounded-lg border border-slate-200"></div>
                         </div>
                         <div class="flex items-end gap-3">
                             <div class="flex-1">
                                 <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Refresh Token</label>
-                                <input type="text" name="credentials[refresh_token]" value="{{ old('credentials.refresh_token', $destination->credentials['refresh_token'] ?? '') }}" class="w-full px-4 py-2 rounded-lg border border-slate-200 bg-slate-50">
+    <input type="text" name="credentials[refresh_token]" value="{{ old('credentials.refresh_token', $prefillRefreshToken) }}" class="w-full px-4 py-2 rounded-lg border border-slate-200 bg-slate-50{{ $flashToken ? ' ring-2 ring-emerald-400' : '' }}" id="edit_refresh_token">
                             </div>
                             <button type="button" onclick="generateGoogleToken()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition whitespace-nowrap mb-[1px] shadow-sm">Update Token</button>
                         </div>
@@ -458,7 +473,8 @@
             return;
         }
 
-        window.location.href = `{{ route('vaultix.auth.google.redirect') }}?client_id=${clientId}&client_secret=${clientSecret}`;
+        // Pass destination_id so the callback redirects back to THIS edit page
+        window.location.href = `{{ route('vaultix.auth.google.redirect') }}?client_id=${clientId}&client_secret=${clientSecret}&destination_id={{ $destination->id }}`;
     }
 
     // Initialize selection colors on load
