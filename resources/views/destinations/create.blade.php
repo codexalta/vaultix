@@ -503,7 +503,7 @@
         'monthly': { all: 60, daily: 90, weekly: 52, monthly: 48 }
     };
 
-    function updateSelection(input, className) {
+    function updateSelection(input, className, isInit = false) {
         // Remove active class from all in group
         document.querySelectorAll('.' + className).forEach(el => {
             el.classList.remove('selected-provider', 'border-indigo-500', 'bg-indigo-50');
@@ -527,7 +527,7 @@
 
         if (className === 'freq-label') {
             const defaults = smartDefaults[input.value];
-            if (defaults) {
+            if (defaults && !isInit) {
                 document.querySelector('input[name="keep_all_backups_for_days"]').value = defaults.all;
                 document.querySelector('input[name="keep_daily_backups_for_days"]').value = defaults.daily;
                 document.querySelector('input[name="keep_weekly_backups_for_weeks"]').value = defaults.weekly;
@@ -565,7 +565,7 @@
     window.onload = () => {
         document.querySelectorAll('input:checked').forEach(input => {
             const labelClass = input.parentElement.classList[0];
-            updateSelection(input, labelClass);
+            updateSelection(input, labelClass, true);
         });
         calculateRetention(); // Call this to show initial summary
     };

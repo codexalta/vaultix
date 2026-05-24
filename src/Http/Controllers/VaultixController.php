@@ -513,6 +513,7 @@ class VaultixController extends Controller
             $command = new \Codexalta\Vaultix\Commands\VaultixBackupCommand();
             $diskConfig = $command->getDiskConfig($backup->destination);
             \Illuminate\Support\Facades\Config::set('filesystems.disks.vaultix_delete', $diskConfig);
+            \Illuminate\Support\Facades\Storage::forgetDisk('vaultix_delete');
 
             if (\Illuminate\Support\Facades\Storage::disk('vaultix_delete')->exists($backup->file_path)) {
                 \Illuminate\Support\Facades\Storage::disk('vaultix_delete')->delete($backup->file_path);
@@ -523,8 +524,9 @@ class VaultixController extends Controller
             VaultixActivity::log('delete', 'Backup', $fileName, "Deleted backup record and file.");
             return back()->with('success', 'Backup record and file deleted successfully.');
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Vaultix Backup Deletion Exception for file {$backup->file_name}: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             $backup->delete(); // Delete record anyway if file is missing
-            return back()->with('success', 'Backup record removed (Cloud file might still exist).');
+            return back()->with('success', 'Backup record removed from database (Cloud file was already missing or could not be reached).');
         }
     }
 

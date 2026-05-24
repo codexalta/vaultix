@@ -165,6 +165,41 @@ class VaultixBackupCommand extends Command
                     'file_name' => basename($latestFile), 'file_size' => $size, 'status' => 'success', 'completed_at' => now(),
                 ]);
 
+                // 3.5 Auto-Cleanup Retention Policy
+                try {
+                    \Illuminate\Support\Facades\Config::set('backup.cleanup.default_strategy.keep_all_backups_for_days', (int) ($job->keep_all_backups_for_days ?? 7));
+                    \Illuminate\Support\Facades\Config::set('backup.cleanup.default_strategy.keep_daily_backups_for_days', (int) ($job->keep_daily_backups_for_days ?? 30));
+                    \Illuminate\Support\Facades\Config::set('backup.cleanup.default_strategy.keep_weekly_backups_for_weeks', (int) ($job->keep_weekly_backups_for_weeks ?? 8));
+                    \Illuminate\Support\Facades\Config::set('backup.cleanup.default_strategy.keep_monthly_backups_for_months', (int) ($job->keep_monthly_backups_for_months ?? 12));
+                    \Illuminate\Support\Facades\Config::set('backup.cleanup.default_strategy.keep_yearly_backups_for_years', 0);
+
+                    Log::info("Vaultix: Running backup:clean for job {$job->name} on disk vaultix_disk...");
+                    
+                    $cleanExitCode = Artisan::call('backup:clean', [
+                        '--no-interaction' => true,
+                        '--config' => 'backup'
+                    ]);
+                    $cleanOutput = Artisan::output();
+                    Log::info("Vaultix: backup:clean finished with code {$cleanExitCode}. Output: " . substr($cleanOutput, 0, 500));
+
+                    // Synchronize pruned files back to database
+                    $dbBackups = \Codexalta\Vaultix\Models\Backup::where('destination_id', $dest->id)
+                        ->where('status', 'success')
+                        ->get();
+                    foreach ($dbBackups as $dbBackup) {
+                        try {
+                            if (!\Illuminate\Support\Facades\Storage::disk('vaultix_disk')->exists($dbBackup->file_path)) {
+                                Log::info("Vaultix Sync: Deleting pruned backup record from DB: {$dbBackup->file_name}");
+                                $dbBackup->delete();
+                            }
+                        } catch (\Exception $syncEx) {
+                            Log::warning("Vaultix Sync Warning: Could not verify existence of file {$dbBackup->file_name}: " . $syncEx->getMessage());
+                        }
+                    }
+                } catch (\Exception $cleanEx) {
+                    Log::error("Vaultix Retention Cleanup Failure for {$job->name}: " . $cleanEx->getMessage());
+                }
+
                 if ($job->notify_on_success && $job->notification_email) {
                     Log::info("Vaultix: Sending success email to {$job->notification_email}");
                     $formattedSize = round($size/1024/1024, 2) . " MB";
